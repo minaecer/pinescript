@@ -1,0 +1,48 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © minaecer
+
+//@version=5
+//input
+indicator('Momentum Based Easy Buy/Sell ', shorttitle='BUY_SELL')
+flen = input.int(30, title='1st length', minval=1)
+slen = input.int(15, title='2st length', minval=1)
+tlen = input.int(8, title='3nd length', minval=1)
+sc = input(title='source', defval=close)
+
+//momentum
+
+mom = ta.ema(10 * ta.ema(nz(ta.roc(sc, 1)), flen), slen)
+idc = ta.ema(mom, tlen)
+
+
+// colors
+
+eba = input(false, title='Enable colors')
+bc1 = mom > 0 ? mom > mom[1] ? color.green : color.orange : mom < mom[1] ? color.red : color.orange
+bc2 = mom > 0 ? mom > mom ? color.lime : color.orange : mom < mom ? color.red : color.orange
+
+bc = eba ? bc2 : na
+barcolor(bc)
+
+//plot
+
+plot(0, color=color.new(color.black, 0), title='zeroline')
+//plot(mom, color=bc1,linewidth=2, title="mom")
+plotcandle(open=mom[1], close=mom, high=mom, low=mom[1], color=bc1)
+//up or down
+
+plotshape(ta.crossover(mom, idc), style=shape.triangleup, text='▲ BUY', color=color.new(color.green, 0), location=location.bottom, size=size.normal)
+plotshape(ta.crossunder(mom, idc), text='▼ SELL', style=shape.triangledown, color=color.new(color.red, 0), location=location.bottom, size=size.normal)
+
+alertcondition(ta.crossover(mom, idc), title='BUY', message='Green Bar!')
+alertcondition(ta.crossunder(mom, idc), title='SELL', message='Red Bar!')
+
+
+var testTable = table.new(position=position.top_right, columns=2, rows=2, bgcolor=color.yellow, border_width=8)
+if barstate.islast and mom>mom[1] and mom>idc
+
+    table.cell(table_id=testTable, column=0, row=0, text='BUY ' )
+
+if barstate.islast and mom<mom[1]
+    table.cell(table_id=testTable, column=1, row=0, text='SELL ' , bgcolor=color.purple)
+
