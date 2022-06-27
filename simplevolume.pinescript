@@ -1,0 +1,24 @@
+// © minaecer
+
+//@version=4
+study("Simple Volume ",shorttitle= "SV_ME")
+flen=input(20,title="first length")
+slen=input(2,title="second length")
+
+mna = rma(vwma(volume, flen), slen)
+vol=volume
+
+
+
+eba = input(false, title='Enable colors')
+bc1 = mna > 0 ? mna > mna[1] ? color.green : color.red : mna < mna[1] ? color.red : color.green
+bc2 = mna > 0 ? mna > mna ? color.lime : color.orange : mna < mna ? color.red : color.orange
+
+p1=plot(mna[1],color=bc1,style=plot.style_stepline)
+
+p2=plot(mna[4],color=bc1 , style = plot.style_stepline)
+fill(p1, p2, color=bc1)
+bc = eba ? bc2 : na
+
+plot(vol,color=color.maroon,transp=60)
+
