@@ -1,0 +1,30 @@
+// © minaecer
+//@version=5
+//input
+indicator('RSI Line ', shorttitle='RSI_L')
+rhigh = input.int(30, title='1st length', minval=1)
+rlow = input.int(15, title='2st length', minval=1)
+tlen = input.int(8, title='3nd length', minval=1)
+sc = input(title='source', defval=close)
+
+signal = ta.rma(12 * ta.rma(nz(ta.roc(sc, 1)), rhigh), rlow)
+msignal = ta.rma(signal, tlen)
+
+mcolor= signal > 0 ? signal > signal[1] ? color.green : color.orange :  signal < signal[1] ? #8B0000 : #DAA520
+mflo = signal < 0 and signal > signal [1]
+mglo = signal < signal[1]
+
+h = plot(0 , title="zeroline" , linewidth=1 , color=color.gray)
+p = plot(signal,color=mcolor,style=plot.style_histogram)
+//fill(h,p,color=mcolor,transp=60)
+
+var testTable = table.new(position=position.top_right, columns=2, rows=2, bgcolor=color.green, border_width=8)
+if barstate.islast and signal > signal [1]
+
+    table.cell(table_id=testTable, column=0, row=0 , text='green lights')
+
+if barstate.islast and signal < signal[1]
+    table.cell(table_id=testTable, column=1, row=0, text='red lights ' , bgcolor=color.red)
+
+
+
