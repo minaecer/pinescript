@@ -1,0 +1,42 @@
+//@version=4
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © minaecer
+study("Simple EMA Candle")
+//length
+flen = input(30, title="1st Length")
+slen = input(15, title="2st Length")
+tlen = input(10, title="3nd Length")
+src = input(close, title="Source")
+barcl = input(true, title="Bar Color")
+//ema
+fema = ema(src, flen)
+sema = ema(src, slen)
+tema = ema(src, tlen)
+//color
+wcolor = tema > fema ? tema > sema ? color.green : color.orange : 
+   tema > sema ? color.orange : color.red
+
+eba = input(false, title="Enable colors")
+
+barcolor(eba ? wcolor : na, title="Bar Colours")
+//plot
+plotcandle(fema, sema, tema, close, title='Title', color=wcolor, wickcolor=color.black)
+avg_1 = avg(tema, fema)
+plotshape(tema >= fema ? avg_1 : na, style=shape.triangleup, size=size.large, color=color.green, location=location.abovebar, show_last=1)
+avg_2 = avg(tema, fema)
+plotshape(fema >= tema ? avg_2 : na, style=shape.triangledown, size=size.large, color=color.red, location=location.abovebar, show_last=1)
+
+
+avg_3 = avg(tema, fema)
+alertcondition(tema >= fema ? avg_3 : na, title='Alert on Green Bar', message='Green Bar!')
+avg_4 = avg(tema, fema)
+alertcondition(fema >= fema ? avg_4 : na, title='Alert on Red Bar', message='Red Bar!')
+
+var testTable = table.new(position=position.top_right, columns=1, rows=1, bgcolor=color.yellow, border_width=1)
+
+
+if barstate.islast
+    table.cell(table_id=testTable, column=0, row=0, text='EMA    ' + tostring(fema))
+
+
+
