@@ -2,47 +2,117 @@
 // © minaecer
 
 //@version=5
-//input
-indicator('Momentum Based Easy Buy/Sell ', shorttitle='BUY_SELL')
-flen = input.int(30, title='1st length', minval=1)
-slen = input.int(15, title='2st length', minval=1)
-tlen = input.int(8, title='3nd length', minval=1)
-sc = input(title='source', defval=close)
+indicator('Momentum Based Clean Buy/Sell', shorttitle='CLEAN_BUY_SELL', overlay=false)
 
-//momentum
+// --- Girdiler ---
+grp_mom = 'Momentum Ayarları'
+flen = input.int(60, title='1st Length', minval=1, group=grp_mom)
+slen = input.int(30, title='2nd Length', minval=1, group=grp_mom)
+tlen = input.int(15, title='3rd Length', minval=1, group=grp_mom)
+sc   = input.source(close, title='Source', group=grp_mom)
 
+grp_sig = 'Sinyal Aralığı & Filtreler'
+minBarsBetweenSignals = input.int(22, title='İki Sinyal Arası Min. Bar', minval=0, maxval=300, group=grp_sig)
+alternateSignals      = input.bool(true, title='Sıralı Sinyal (BUY -> SELL -> BUY)', group=grp_sig)
+useZeroFilter         = input.bool(true, title='Sıfır Çizgisi Filtresi (BUY > 0, SELL < 0)', group=grp_sig)
+showSignalLabels      = input.bool(false, title='BUY / SELL Yazılarını Göster', group=grp_sig)
+
+grp_vis = 'Görünüm'
+eba       = input.bool(false, title='Ana Mumları Boya', group=grp_vis)
+showTable = input.bool(true, title='Durum Tablosunu Göster', group=grp_vis)
+
+// --- Momentum Hesaplama ---
 mom = ta.ema(10 * ta.ema(nz(ta.roc(sc, 1)), flen), slen)
 idc = ta.ema(mom, tlen)
 
+// --- Renkler ---
+c_up   = #00C853
+c_down = #FF1744
+c_neut = #FFA726
 
-// colors
+momRising = mom > mom[1]
+bc1 = mom > 0 ? (momRising ? c_up : c_neut) : (mom < mom[1] ? c_down : c_neut)
+bc2 = mom > 0 ? (mom > idc ? #00E676 : c_neut) : (mom < idc ? #FF5252 : c_neut)
 
-eba = input(false, title='Enable colors')
-bc1 = mom > 0 ? mom > mom[1] ? color.green : color.orange : mom < mom[1] ? color.red : color.orange
-bc2 = mom > 0 ? mom > mom ? color.lime : color.orange : mom < mom ? color.red : color.orange
+barcolor(eba ? bc2 : na)
 
-bc = eba ? bc2 : na
-barcolor(bc)
+// --- Sinyal Mantığı ve Seyreltme ---
+rawBuy  = ta.crossover(mom, idc) and (not useZeroFilter or mom > 0)
+rawSell = ta.crossunder(mom, idc) and (not useZeroFilter or mom < 0)
 
-//plot
+var int lastSignalBar = na
+var int lastSignalDir = 0 // 1 = BUY, -1 = SELL, 0 = Yok
 
-plot(0, color=color.new(color.black, 0), title='zeroline')
-//plot(mom, color=bc1,linewidth=2, title="mom")
-plotcandle(open=mom[1], close=mom, high=mom, low=mom[1], color=bc1)
-//up or down
+barsSinceLast = na(lastSignalBar) ? 999999 : (bar_index - lastSignalBar)
+spacingOk     = barsSinceLast >= minBarsBetweenSignals
 
-plotshape(ta.crossover(mom, idc), style=shape.triangleup, text='▲ BUY', color=color.new(color.green, 0), location=location.bottom, size=size.normal)
-plotshape(ta.crossunder(mom, idc), text='▼ SELL', style=shape.triangledown, color=color.new(color.red, 0), location=location.bottom, size=size.normal)
+finalBuy  = rawBuy and spacingOk and (not alternateSignals or lastSignalDir <= 0)
+finalSell = rawSell and spacingOk and (not alternateSignals or lastSignalDir >= 0)
 
-alertcondition(ta.crossover(mom, idc), title='BUY', message='Green Bar!')
-alertcondition(ta.crossunder(mom, idc), title='SELL', message='Red Bar!')
+if finalBuy
+    lastSignalBar := bar_index
+    lastSignalDir := 1
+else if finalSell
+    lastSignalBar := bar_index
+    lastSignalDir := -1
 
+// --- Çizimler ---
+hline(0, 'Zero Line', color=color.new(color.gray, 55), linestyle=hline.style_dashed)
+plot(idc, title='Signal Line (IDC)', color=color.new(#2979FF, 25), linewidth=1)
+plotcandle(open=mom[1], close=mom, high=math.max(mom, mom[1]), low=math.min(mom, mom[1]), title='Momentum', color=bc1, wickcolor=bc1, bordercolor=bc1)
 
-var testTable = table.new(position=position.top_right, columns=2, rows=2, bgcolor=color.yellow, border_width=8)
-if barstate.islast and mom>mom[1] and mom>idc
+// Yazı açıkken
+plotshape(
+     finalBuy and showSignalLabels,
+     title='BUY Signal (Text)',
+     style=shape.triangleup,
+     text='BUY',
+     textcolor=c_up,
+     color=c_up,
+     location=location.bottom,
+     size=size.tiny
+ )
 
-    table.cell(table_id=testTable, column=0, row=0, text='BUY ' )
+plotshape(
+     finalSell and showSignalLabels,
+     title='SELL Signal (Text)',
+     style=shape.triangledown,
+     text='SELL',
+     textcolor=c_down,
+     color=c_down,
+     location=location.top,
+     size=size.tiny
+ )
 
-if barstate.islast and mom<mom[1]
-    table.cell(table_id=testTable, column=1, row=0, text='SELL ' , bgcolor=color.purple)
+// Yazı kapalıyken (varsayılan)
+plotshape(
+     finalBuy and not showSignalLabels,
+     title='BUY Signal (No Text)',
+     style=shape.triangleup,
+     color=c_up,
+     location=location.bottom,
+     size=size.tiny
+ )
 
+plotshape(
+     finalSell and not showSignalLabels,
+     title='SELL Signal (No Text)',
+     style=shape.triangledown,
+     color=c_down,
+     location=location.top,
+     size=size.tiny
+ )
+
+// --- Alarmlar ---
+alertcondition(finalBuy, title='Clean BUY', message='Clean BUY Signal')
+alertcondition(finalSell, title='Clean SELL', message='Clean SELL Signal')
+
+// --- Durum Tablosu ---
+var table statusTable = table.new(position.top_right, columns=1, rows=1, bgcolor=color.new(#1E222D, 15), border_width=1, border_color=color.new(color.gray, 60))
+
+if showTable and barstate.islast
+    isBull = mom > mom[1] and mom > idc
+    isBear = mom < mom[1] and mom < idc
+    tText  = isBull ? 'MOMENTUM: BUY' : isBear ? 'MOMENTUM: SELL' : 'MOMENTUM: NÖTR'
+    tBg    = isBull ? color.new(c_up, 20) : isBear ? color.new(c_down, 20) : color.new(c_neut, 25)
+    table.cell(statusTable, 0, 0, tText, text_color=color.white, bgcolor=tBg)
